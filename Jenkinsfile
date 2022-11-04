@@ -5,7 +5,6 @@ def COLOR_MAP = [
 
 
 
-
 pipeline {
     agent any
 
@@ -13,7 +12,7 @@ pipeline {
         stage('Git checkout') {
             steps {
                 echo 'Cloning project codebase...'
-                git branch: 'main', url: 'https://github.com/cvamsikrishna11/airbnb-infrastructure.git'
+                git branch: 'main', url: 'https://github.com/sbekombe/airbnb-infrastructure.git'
                 sh 'ls'
             }
         }
@@ -37,11 +36,12 @@ pipeline {
         
         stage('Terraform validate') {
             steps {
-                echo 'code syntax checking...'
+                echo 'Code syntax checking...'
                 sh 'terraform validate'
                
             }
         }
+        
         
         stage('Terraform plan') {
             steps {
@@ -51,36 +51,48 @@ pipeline {
             }
         }
         
+        stage('checkov scan') {
+            steps {
+                
+                sh """
+                sudo pip3 install checkov
+                
+                checkov -d . --skip-check CKV_AWS_79
+                """
+               
+            }
+        }
+        
+        
+        
         stage('Manual approval') {
             steps {
+                
                 input 'Approval required for deployment'
                
             }
         }
         
-        stage('checkov scan') {
-            steps {
-                sh """
-                sudo pip3 install checkov
-                checkov -d . --skip-check CKV_AWS_20_79
-                """
-            }
-        }
         
-        stage('Terraform apply') {
+         stage('Terraform apply') {
             steps {
-                echo 'setting up infrastructure...'
-                sh 'terraform apply --auto-approve'
+                echo 'Terraform apply...'
+                sh 'sudo terraform apply --auto-approve'
+               
                
             }
         }
         
+        
     }
     
-    post { 
+     post { 
         always { 
             echo 'I will always say Hello again!'
-            slackSend channel: '#glorious-w-f-devops-alerts', color:'COLOR_MAP[currentBuild.currentResult', message: '*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URL}'
+            slackSend channel: '#glorious-w-f-devops-alerts', color: COLOR_MAP[currentBuild.currentResult], message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URL}"
         }
     }
+    
+    
+    
 }
